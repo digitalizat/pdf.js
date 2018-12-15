@@ -525,7 +525,7 @@ var Driver = (function DriverClosure() { // eslint-disable-line no-unused-vars
 
                 // The annotation builder will draw its content on the canvas.
                 initPromise =
-                  page.getAnnotations({ intent: 'display', }).then(
+                  page.getAnnotationgetAnnotations({ intent: 'display', }).then(
                     function(annotations) {
                       return rasterizeAnnotationLayer(annotationLayerContext,
                                                       viewport, annotations,

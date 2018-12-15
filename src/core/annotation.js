@@ -38,7 +38,7 @@ class AnnotationFactory {
    */
   static create(xref, ref, pdfManager, idFactory) {
     return pdfManager.ensure(this, '_create',
-                             [xref, ref, pdfManager, idFactory]);
+      [xref, ref, pdfManager, idFactory]);
   }
 
   /**
@@ -79,13 +79,16 @@ class AnnotationFactory {
         switch (fieldType) {
           case 'Tx':
             return new TextWidgetAnnotation(parameters);
+          // *FMB*
+          case 'Sig':
+            return new SigWidgetAnnotation(parameters);
           case 'Btn':
             return new ButtonWidgetAnnotation(parameters);
           case 'Ch':
             return new ChoiceWidgetAnnotation(parameters);
         }
         warn('Unimplemented widget field type "' + fieldType + '", ' +
-             'falling back to base field type.');
+          'falling back to base field type.');
         return new WidgetAnnotation(parameters);
 
       case 'Popup':
@@ -132,7 +135,7 @@ class AnnotationFactory {
           warn('Annotation is missing the required /Subtype.');
         } else {
           warn('Unimplemented annotation type "' + subtype + '", ' +
-               'falling back to base annotation.');
+            'falling back to base annotation.');
         }
         return new Annotation(parameters);
     }
@@ -165,6 +168,7 @@ function getTransformMatrix(rect, bbox, matrix) {
   ];
 }
 
+// *FFMMBB*
 class Annotation {
   constructor(params) {
     let dict = params.dict;
@@ -199,8 +203,8 @@ class Annotation {
    */
   _isViewable(flags) {
     return !this._hasFlag(flags, AnnotationFlag.INVISIBLE) &&
-           !this._hasFlag(flags, AnnotationFlag.HIDDEN) &&
-           !this._hasFlag(flags, AnnotationFlag.NOVIEW);
+      !this._hasFlag(flags, AnnotationFlag.HIDDEN) &&
+      !this._hasFlag(flags, AnnotationFlag.NOVIEW);
   }
 
   /**
@@ -208,8 +212,8 @@ class Annotation {
    */
   _isPrintable(flags) {
     return this._hasFlag(flags, AnnotationFlag.PRINT) &&
-           !this._hasFlag(flags, AnnotationFlag.INVISIBLE) &&
-           !this._hasFlag(flags, AnnotationFlag.HIDDEN);
+      !this._hasFlag(flags, AnnotationFlag.INVISIBLE) &&
+      !this._hasFlag(flags, AnnotationFlag.HIDDEN);
   }
 
   /**
@@ -418,7 +422,7 @@ class Annotation {
       }
       let objectLoader = new ObjectLoader(resources, keys, resources.xref);
 
-      return objectLoader.load().then(function() {
+      return objectLoader.load().then(function () {
         return resources;
       });
     });
@@ -597,14 +601,16 @@ class WidgetAnnotation extends Annotation {
 
     data.annotationType = AnnotationType.WIDGET;
     data.fieldName = this._constructFieldName(dict);
-    data.fieldValue = getInheritableProperty({ dict, key: 'V',
-                                               getArray: true, });
+    data.fieldValue = getInheritableProperty({
+      dict, key: 'V',
+      getArray: true,
+    });
     data.alternativeText = stringToPDFString(dict.get('TU') || '');
     data.defaultAppearance = getInheritableProperty({ dict, key: 'DA', }) || '';
     let fieldType = getInheritableProperty({ dict, key: 'FT', });
     data.fieldType = isName(fieldType) ? fieldType.name : null;
     this.fieldResources = getInheritableProperty({ dict, key: 'DR', }) ||
-                          Dict.empty;
+      Dict.empty;
 
     data.fieldFlags = getInheritableProperty({ dict, key: 'Ff', });
     if (!Number.isInteger(data.fieldFlags) || data.fieldFlags < 0) {
@@ -618,7 +624,7 @@ class WidgetAnnotation extends Annotation {
     // cause errors when sending annotations to the main-thread (issue 10347).
     if (data.fieldType === 'Sig') {
       data.fieldValue = null;
-      this.setFlags(AnnotationFlag.HIDDEN);
+      //this.setFlags(AnnotationFlag.HIDDEN);
     }
   }
 
@@ -718,10 +724,10 @@ class TextWidgetAnnotation extends WidgetAnnotation {
     // Process field flags for the display layer.
     this.data.multiLine = this.hasFieldFlag(AnnotationFieldFlag.MULTILINE);
     this.data.comb = this.hasFieldFlag(AnnotationFieldFlag.COMB) &&
-                     !this.hasFieldFlag(AnnotationFieldFlag.MULTILINE) &&
-                     !this.hasFieldFlag(AnnotationFieldFlag.PASSWORD) &&
-                     !this.hasFieldFlag(AnnotationFieldFlag.FILESELECT) &&
-                     this.data.maxLen !== null;
+      !this.hasFieldFlag(AnnotationFieldFlag.MULTILINE) &&
+      !this.hasFieldFlag(AnnotationFieldFlag.PASSWORD) &&
+      !this.hasFieldFlag(AnnotationFieldFlag.FILESELECT) &&
+      this.data.maxLen !== null;
   }
 
   getOperatorList(evaluator, task, renderForms) {
@@ -749,14 +755,39 @@ class TextWidgetAnnotation extends WidgetAnnotation {
   }
 }
 
+// *FMB*
+class SigWidgetAnnotation extends WidgetAnnotation {
+  constructor(params) {
+    super(params);
+
+    const dict = params.dict;
+
+    // The field value is always a string.
+    this.data.fieldValue = stringToPDFString(this.data.fieldValue || '');
+
+    var valores = getInheritableProperty({
+      dict, key: 'V',
+      getArray: true,
+    });
+
+    this.data.sigDate = valores._map.M;
+    this.data.sigName = valores._map.Name;
+    this.data.sigReason = valores._map.Reason;
+    this.data.sigLocation = valores._map.Location;
+    this.data.sigContactInfo = valores._map.ContactInfo;
+
+  }
+
+}
+
 class ButtonWidgetAnnotation extends WidgetAnnotation {
   constructor(params) {
     super(params);
 
     this.data.checkBox = !this.hasFieldFlag(AnnotationFieldFlag.RADIO) &&
-                         !this.hasFieldFlag(AnnotationFieldFlag.PUSHBUTTON);
+      !this.hasFieldFlag(AnnotationFieldFlag.PUSHBUTTON);
     this.data.radioButton = this.hasFieldFlag(AnnotationFieldFlag.RADIO) &&
-                            !this.hasFieldFlag(AnnotationFieldFlag.PUSHBUTTON);
+      !this.hasFieldFlag(AnnotationFieldFlag.PUSHBUTTON);
     this.data.pushButton = this.hasFieldFlag(AnnotationFieldFlag.PUSHBUTTON);
 
     if (this.data.checkBox) {
@@ -865,7 +896,7 @@ class ChoiceWidgetAnnotation extends WidgetAnnotation {
         this.data.options[i] = {
           exportValue: isOptionArray ? xref.fetchIfRef(option[0]) : option,
           displayValue: stringToPDFString(isOptionArray ?
-                                          xref.fetchIfRef(option[1]) : option),
+            xref.fetchIfRef(option[1]) : option),
         };
       }
     }
@@ -897,7 +928,7 @@ class TextAnnotation extends Annotation {
       this.data.rect[1] = this.data.rect[3] - DEFAULT_ICON_SIZE;
       this.data.rect[2] = this.data.rect[0] + DEFAULT_ICON_SIZE;
       this.data.name = parameters.dict.has('Name') ?
-                       parameters.dict.get('Name').name : 'Note';
+        parameters.dict.get('Name').name : 'Note';
     }
     this._preparePopup(parameters.dict);
   }
